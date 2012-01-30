@@ -2,7 +2,7 @@
 
 #include "flat_tokens.h"
 #include "tokenizer.h"
-
+#include "arraylist.h"
 
 int main(int argc, char** argv) {
 	if(argc != 2) {
@@ -10,10 +10,12 @@ int main(int argc, char** argv) {
 		exit(0);
 	}
 	
-	token toks;
 	size_t count;
+	arraylist alist;
+	
+	init_array(&alist, sizeof(token), 10);
 	register_token_parsers(parsers, 3);
-	parse_file(argv[1], &toks, &count);	
+	parse_file(argv[1], &alist, &count);	
 }
 
 /*	Function which will parse out a token, returning 0 on success or non-zero on failure.
@@ -24,8 +26,9 @@ int main(int argc, char** argv) {
 //typedef uint8_t (*parse_token) (char* buffer, size_t* count, token* type);
 
 //Each state is '\w+\d+:' or '\w+\d+'
-uint8_t parse_state (char* buffer, size_t* count, void* type) {
-	state_token st;
+uint8_t parse_state (char* buffer, size_t* count, arraylist* alist) {
+	token tok;
+	tok.type = STATE;
 	
 	size_t len = strlen(opcodes[0]);
 	for(size_t i = 0; i < OPCODE_COUNT; i++, len = strlen(opcodes[i]))
@@ -35,33 +38,38 @@ uint8_t parse_state (char* buffer, size_t* count, void* type) {
 				len = 4;
 			}
 			//Match found -- parse microstate
-			st.state = i;
-			st.step = atoi(&buffer[len]); 
-			st.step > 9 ? len+=2 : len++;
-			
-			printf("STATE: %s, STEP: %i\n", opcodes[i], st.step);
+			tok.state.state = i;
+			tok.state.step = atoi(&buffer[len]); 
+			tok.state.step > 9 ? len+=2 : len++;
 			
 			if(strstr(&buffer[len], ":") == &buffer[len])
 				len++; //If a ':' follows this token, lets drop it.
 			*count = len;
+			
+			append_back(alist, (char*) &tok); 
+			
 			return 0;
 		}
+		*count = 0;
 		return 1; //Failure
 }
 
 //Each signal is simply '\w+' 
-uint8_t parse_signal (char* buffer, size_t* count, void* type) {
-	signal_token st;
+uint8_t parse_signal (char* buffer, size_t* count, arraylist* alist) {
+	token tok;
+	tok.type = SIGNAL;
 	
 	size_t len = strlen(signals[0]);
 	for(size_t i = 0; i < SIGNAL_COUNT; i++, len = strlen(signals[i])) 
 		if(strncasecmp(buffer, signals[i], len) == 0) {
-			st = 1<<i;
+			tok.signal = 1<<i;
 			*count = len;
-			printf("SIGNAL: %s\n", signals[i]);
+			
+			append_back(alist, (char*) &tok);
 			return 0;
 		}
 		
+	*count = 0;
 	return 1; //Failure
 }
 
@@ -76,20 +84,22 @@ uint8_t parse_signal (char* buffer, size_t* count, void* type) {
 	state parsing will take care every STATE, we need to catch
 	GOTO, DISPATCH, ONZ, ONINT, and ELSE.  
 */
-uint8_t parse_transition (char* buffer, size_t* count, void* type) {
-	transition_token tt;
+uint8_t parse_transition (char* buffer, size_t* count, arraylist* alist) {
+	token tok;
+	tok.type = TRANSITION;
 	
 	size_t len = strlen(signals[0]);
 	for(size_t i = 0; i < TRANS_COUNT; i++, len = strlen(transitions[i])) {
 		if(strncasecmp(buffer, transitions[i], len) == 0) {
-			tt = 1<<i; //Flip the appropriate bit
+			tok.transition = 1<<i; //Flip the appropriate bit
 			*count = len;
 			
-			printf("TRANSITION: %s\n", transitions[i]);
+			append_back(alist, (char*) &tok);
 			return 0;
 		}
 	}
 	
+	*count = 0;
 	return 1; //Failure
 }
 

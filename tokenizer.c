@@ -32,7 +32,7 @@ size_t read_str(FILE* f, char* buf);
 	tokens = out parameter of tokens parsed.
 	token_count = the number of tokens parsed.
 */
-uint8_t parse_file (const char* file_name, void* tokens, size_t* token_count) {
+uint8_t parse_file (const char* file_name, arraylist* tokens, size_t* token_count) {
 	//Pointer to our file descriptor, and temporary buffer for reading.
 	FILE* f = NULL;
 	char buf[MAX_TOKEN_LENGTH];
@@ -48,31 +48,20 @@ uint8_t parse_file (const char* file_name, void* tokens, size_t* token_count) {
 	
 	while(read_str(f, buf))
 		for(size_t i = 0; i < func_count; i++) {
-			size_t count; 
+			size_t count = 0; 
 			
-			(*parse_funcs[i]) (buf, &count, tokens);
-						
-			//append the token to the stream
-			/*tokens->next = malloc(sizeof(token));
-			//tokens = tokens->next;
-
-			if(tokens == NULL) { //Malloc failure!
-				printf("malloc failed!\n");
-				exit(0);
-			}*/
-			
-			//If the token didn't take the entire string.. keep searching.
-			if(count < strlen(buf)) {
-				memmove(buf, buf+count, MAX_TOKEN_LENGTH-count);
-				i = 0;			
-			}
+			if((*parse_funcs[i]) (buf, &count, tokens) == 0)
+				//If the token didn't take the entire string.. keep searching.
+				if(count < strlen(buf)) {
+					memmove(buf, buf+count, MAX_TOKEN_LENGTH-count);
+					i = 0;			
+				}
 		}
 
 	if(fclose(f) != 0) {
 		printf("fclose failed! %i\n", errno);
 		return errno;
 	}
-
 	//3.  Return success.
 	return 0;
 }

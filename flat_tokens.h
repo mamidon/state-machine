@@ -122,9 +122,9 @@ typedef struct token_ {
 */
 //typedef uint8_t (*parse_token) (char* buffer, size_t* count, token* type);
 
-uint8_t parse_state (char* buffer, size_t* count, void* type);
-uint8_t parse_signal (char* buffer, size_t* count, void* type);
-uint8_t parse_transition (char* buffer, size_t* count, void* type);
+uint8_t parse_state (char* buffer, size_t* count, arraylist* alist);
+uint8_t parse_signal (char* buffer, size_t* count, arraylist* alist);
+uint8_t parse_transition (char* buffer, size_t* count, arraylist* alist);
 
 parse_token parsers[3] = { &parse_state, &parse_signal, &parse_transition };
 
