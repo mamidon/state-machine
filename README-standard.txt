@@ -189,3 +189,5 @@ creative!
 28 Aug. 2008: Added Windows binaries information and did some cleanup, Matt Bigelow
 15 Sep. 2010: Re-written for the MICOCompiler three-ROM state machine. Assembler left untouched, Charlie Shilling
 20 Jan. 2011: Split into several files: README-assembler.txt, README-standard.txt, and README-bonus.txt, Charlie Shilling
+----
+29 Jan. 2012: Trashing fsmromv4, reimpleminting it due to difficulty maintaining it.  Note that fsmromv4.c is not under development.
