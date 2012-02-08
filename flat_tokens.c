@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
 	size_t count;
 	
 	head = malloc(sizeof(macro_state));
-	head->parse = EMPTY;
+	memset(head, 0, sizeof(macro_state));
 
 	register_token_parsers(parsers, 3);
 	parse_file(argv[1], &count);	
@@ -39,19 +39,24 @@ uint8_t parse_state (char* buffer, size_t* count) {
 
 	*count = strlen(opcodes[index]);
 	//Match found -- parse microstate
+	size_t stp = atoi(buffer+*count); //Grab the micro number
+	stp > 9 ? (*count)+= 2 : (*count)++;
 	if(head->parse == EMPTY) {
 		head->opcode = index;
-		head->step = atoi(buffer);
-		head->step > 9 ? *count+=2 : *count++;
+		head->step = stp;
 	} else if(head->parse == TRANSITION_FILLING) {
+		transition_type t = head->transition.type;
 		if(head->transition.first_step == EMPTY) {
-			head->transition.step_a = index;
-			head->transition.first_step = TRANSITION_FILLING;
+			head->transition.step_a = stp;
+			if(t == GOTO) {head->parse = TRANSITION_FILLED;} 
+			else {head->transition.first_step = TRANSITION_FILLING;}
 		} else {
-			head->transition.step_b = index;
+			head->transition.step_b = stp;
 			head->parse = TRANSITION_FILLED;
-			push_macro_state();
 		}
+
+		if(head->parse == TRANSITION_FILLED)
+			push_macro_state();
 		return 0;
 	}		
 			
@@ -103,9 +108,9 @@ uint8_t parse_transition (char* buffer, size_t* count) {
 	if(index == TRANS_COUNT)
 		return 1;
 
-	head->type = index;
+	head->transition.type = index;
 	if(index == DISPATCH) {
-		head->parse = TRANSITION_FILLING;
+		head->parse = TRANSITION_FILLED;
 		head->transition.step_a = head->transition.step_b = 0;
 		push_macro_state();
 	} else //GOTO, ONZ, ONINT, ELSE
@@ -113,11 +118,22 @@ uint8_t parse_transition (char* buffer, size_t* count) {
 	
 		
 	*count = strlen(transitions[index]);
-	return 1; //Failure
+
+	return 0; //Success
 }
 
+void push_macro_state() {
+	macro_state* n = malloc(sizeof(macro_state));
+	memset(n, 0, sizeof(macro_state));
 
-/* Pushes a clean macro state onto th
+	n->next = head;
+
+
+	printf("%s%i: %i \n", opcodes[head->opcode], head->step, head->signal);
+
+	head = n;
+}
+
 
 const char* opcodes[OPCODE_COUNT+1] = {
   /* opcode     */

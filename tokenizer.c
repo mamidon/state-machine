@@ -75,7 +75,7 @@ uint8_t parse_file (const char* file_name, size_t* token_count) {
 size_t read_str(FILE* f, char* buf) {
 	char c;
 	//Skip preceeding whitespace
-	while(!isalpha(c = fgetc(f)) && c != EOF);
+	while(!isalnum(c = fgetc(f)) && c != EOF);
 	ungetc(c, f);
 
 	//clear buffer
@@ -84,7 +84,7 @@ size_t read_str(FILE* f, char* buf) {
 	//Grab the string
 	for(size_t index = 0; index < MAX_TOKEN_LENGTH; index++) {
 		buf[index] = fgetc(f);
-		if(buf[index] == EOF || !isalpha(buf[index])) {
+		if(buf[index] == EOF || !isalnum(buf[index])) {
 			buf[index] = '\0';
 			return index;
 		}
@@ -107,12 +107,13 @@ void register_token_parsers (parse_token* functions, size_t count) {
 	Finds the longest matching string from strs. 
 */
 size_t best_match(char* buffer, const char** strs, size_t count) {
-	size_t len = 0, max = 0, ret = count;
+	size_t max = 0, ret = count;
 
-	for(size_t i = 0; i < count; len = strlen(&strs[i])) 
-		if(strncasecmp(buffer, strs[i], len) == 0 && len > max) {
+	for(size_t i = 0; i < count; i++) 
+		if(strncasecmp(buffer, strs[i], strlen(strs[i])) == 0 
+				&& strlen(strs[i]) > max) {
 			ret = i;
-			max = len;
+			max = strlen(strs[i]);
 		}
 
 	return ret;
