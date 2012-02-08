@@ -4,16 +4,20 @@
 
 #include "flat_tokens.h"
 
-#define FETCH_STEP_COUNT 10 //Defines the max number of micro steps for ifetch
+ //Defines the max number of micro steps for ifetch
+#define FETCH_STEP_COUNT 10
 
 //Offsets for the parameters that go into addressing the ROM
 #define CHKZ_OFFSET 11
 #define INT_OFFSET 10
 #define OP_OFFSET 6
 #define NEXT_OFFSET 0
+#define ROM_ADDR_BITS (CHKZ_OFFSET+1)
 
+//Offsets for values that go into the ROM
+#define SIG_OFFSET 6
 
-uint32_t binary[(1<<12)-1]; //this represents the ROM
+uint32_t binary[(1<<ROM_ADDR_BITS)-1]; //this represents the ROM
 
 
 /* Generates a flat rom binary image*/
@@ -23,22 +27,18 @@ void emit_binary();
 uint32_t emit_addr(size_t opcode, char zero, char interrupt, char next);
 
 /* Generates the binary image */
-void generate_binary(token* tokens, size_t count);
+void generate_binary(macro_state* head);
 
 /* Burns the appropriate signals at the appropriate indices in the ROM */
-size_t generate_micro_state(size_t stage, size_t transition, signal_token signal, token* tokens);
-void generate_fetch_step(token stage, signal_token, token trans);
+void generate_micro_state(macro_state* state);
+void generate_micro_fetch(macro_state* fetch_step);
+void generate_micro_inst(macro_state* inst_step);
 
-/* Gets the index for the next STAGE token, with count tokens left in the stream */
-size_t get_stage(token* tokens, size_t begin, size_t state);
-
-/* Gets the actual value of the signals for the given stage.
-	It is assumed that all signals for each stage are found
-	between the stage token and the corresponding transition token.
+/* Burns the signals and grabs the next field from the specified
+	locations 
 */
-signal_token get_signals(token* tokens, size_t stage, size_t transition);
+void burn_signals(size_t opcode, size_t step, signal_token signals, 
+									size_t reg, size_t is_onz, size_t on_branch);
 
-/* Finds the next transition token, with count tokens left in the stream */
-size_t get_transition(token* tokens, size_t begin, size_t state);
 
 #endif

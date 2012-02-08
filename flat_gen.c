@@ -1,120 +1,116 @@
+#include <errno.h>
+#include <stdio.h>
+
 #include "flat_gen.h"
 
+uint32_t binary[(1<<ROM_ADDR_BITS)-1];
 
 /* Generates a flat rom binary image*/
 void emit_binary() {}
 
-void print_stream(token* tokens, size_t begin, size_t end);
-
-void print_stream(token* tokens, size_t begin, size_t end) {
-	for(size_t i = begin; i < end; i++)
-		if(tokens[i].type == STATE)
-			printf("STAGE ");
-		else if(tokens[i].type == SIGNAL)
-			printf("SIGNAL ");
-		else if(tokens[i].type == TRANSITION)
-			printf("TRANS ");
-
-	printf("\n\n\n");
-}
-
 /* Generates an address into the rom for the given parameters */
-uint32_t emit_addr(size_t opcode, char zero, char interrupt, char next) {
-	return zero<<CHKZ_OFFSET | interrupt<<INT_OFFSET | opcode<<OP_OFFSET | next<<NEXT_OFFSET;
+uint32_t emit_addr(size_t opcode, char zero, char interrupt, char step) {
+	return zero<<CHKZ_OFFSET | interrupt<<INT_OFFSET | opcode<<OP_OFFSET 
+					| step<<NEXT_OFFSET;
 }
 
 /* Generates the binary image */
-void generate_binary(token* tokens, size_t count) {
-	for(size_t i = 0; i < count; ) {
-		size_t stage = get_stage(tokens, i, count);
-		size_t trans = get_transition(tokens, stage, count);
-		signal_token signal = get_signals(tokens, stage, trans);
+void generate_binary(macro_state* head) {
+	memset(binary, 0, (1<<ROM_ADDR_BITS)-1);
+	while(head != NULL) {
+		generate_micro_state(head);
+		head = head->next;
+	}
 
-		i = generate_micro_state(stage, trans, signal, tokens);
-		i++;
-		printf("%i %i\n", i, count);
-		print_stream(tokens, i, count);
+	//Now write the binary out to file
+	FILE* f = fopen("out.hex", "w");
+	if(f == NULL) {
+		printf("Error writing out binary! %i\n", errno);
+		exit(0);
+	}
+
+	for(size_t i = 0; i < (1<<ROM_ADDR_BITS)-1; i++)
+		fprintf(f, "%08X ", binary[i]);
+
+	if(fclose(f) != 0) {
+		printf("Close failed! %i\n", errno);
+		exit(0);
 	}
 }
 
 /* Burns the appropriate signals at the appropriate indices in the ROM */
-size_t generate_micro_state(size_t stage, size_t trans, signal_token signal, token* tokens) {
-	uint32_t addr;
-  size_t lookahead = trans;
-
-	//Look ahead into the stream and parse out transition targets
-	switch(tokens[trans].transition.type) {
-		case DISPATCH: //No look ahead
-		break;
-		
-		case GOTO: //goto STATE
-		tokens[trans].transition.target_a = tokens[trans+1].state;
-		lookahead = trans + 1;
-		break;
-
-		case ONZ: //onz STATE else STATE
-		case ONINT:
-		tokens[trans].transition.target_a = tokens[trans+1].state;
-		tokens[trans].transition.target_b = tokens[trans+3].state;
-		lookahead = trans + 3;
-		break;
-
-		case ELSE: //Shouldn't actually parse this, error out.
-		printf("Unexpected 'else' statement.\n");
-		exit(0);
-		break;
-	}
+void generate_micro_state(macro_state* state) {
 
 	//Each micro state will be repeated four times between chkZ and onInt
 	//Changes in the microstate will vary based on the transition token
 	
-	// chkZ && onInt
-	token state = tokens[stage];
-
-	if(state.state.opcode != OPCODE_COUNT-1) //If not IFETCH
-		printf("");//generate_micro_inst(state, signal, transition);
+	if(state->opcode == FETCH_OPCODE)
+		generate_micro_fetch(state);
 	else
-		generate_fetch_step(tokens[stage], signal, tokens[trans]);
-
-
-	return lookahead;
+		generate_micro_inst(state);
 }
 
 
-void generate_fetch_step(token stage, signal_token signal, token trans) {
-	printf("FETCH%i:\n", stage.state.step);
+void generate_micro_fetch(macro_state* fetch_step) {
+	macro_state st = *fetch_step;
+	size_t a = st.transition.step_a; //Regular, dispatch, else
+	size_t b = st.transition.step_b; //onint, onz
+
+	switch(st.transition.type) {
+		case(DISPATCH):
+			burn_signals(0, st.step, st.signal, a, 0, a);
+			break;
+		case(GOTO):
+			burn_signals(0, st.step, st.signal, a, 0, a);
+			break;
+		case(ONZ):
+			burn_signals(0, st.step, st.signal, a, 1, b);
+			break;
+		case(ONINT):
+			burn_signals(0, st.step, st.signal, a, 0, b);
+			break;
+	}
+
+	return;
 }
 
-/* Gets the index for the next STAGE token, with count tokens left in the stream */
-size_t get_stage(token* tokens, size_t begin, size_t end) {
-	for(size_t i = begin; i < end; i++)
-		if(tokens[i].type == STATE)
-			return i;
-			
-	printf("ERROR: Expected STAGE token\n");
-	exit(0);
-	return 0;
+void generate_micro_inst(macro_state* inst_step) {
+	macro_state st = *inst_step;
+	st.step += FETCH_STEP_COUNT;
+	size_t a = st.transition.step_a; //Regular, dispatch, else
+	size_t b = st.transition.step_b; //onint, onz
+
+	switch(st.transition.type) {
+		case(DISPATCH):
+			burn_signals(st.opcode, FETCH_STEP_COUNT, st.signal, a, 0, a);
+			break;
+		case(GOTO):
+			burn_signals(st.opcode, st.step, st.signal, a, 0, a);
+			break;
+		case(ONZ):
+			burn_signals(st.opcode, st.step, st.signal, a, 1, b);
+			break;
+		case(ONINT):
+			burn_signals(st.opcode, st.step, st.signal, a, 0, b);
+			break;
+	}
+
+	return;
+
 }
 
-/* Gets the actual value of the signals for the given stage.
-	It is assumed that all signals for each stage are found
-	between the stage token and the corresponding transition token.
-*/
-signal_token get_signals(token* tokens, size_t stage, size_t transition) {
-	signal_token ret = 0;
-	for(size_t i = stage+1; i < transition; i++)
-		if(tokens[i].type == SIGNAL) //should always be true
-			ret |= tokens[i].signal;
-	return ret;
+void burn_signals(size_t opcode, size_t step, signal_token signals, 
+									size_t reg, size_t is_onz, size_t on_branch) {
+	for(size_t i = 0; i < 2; i++)
+		for(size_t z = 0; z < 2; z++) {
+			size_t br = is_onz && z || !is_onz && i ? on_branch : reg;
+			binary[emit_addr(opcode, z, i, step)] = 
+				(signals << SIG_OFFSET) | br;
+	}
 }
 
-/* Finds the next transition token, with count tokens left in the stream */
-size_t get_transition(token* tokens, size_t begin, size_t end) {
-	for(size_t i = begin; i < end; i++)
-		if(tokens[i].type == TRANSITION)
-			return i;
-	
-	printf("ERROR: Expected TRANSITION token\n");
-	exit(0);
-	return 0; //Shouldn't happen
-}
+
+
+
+
+

@@ -1,8 +1,8 @@
 CFLAGS = -g -std=c99 -O0
 all: fsmrom
 
-fsmrom: tokenizer.o flat_tokens.o 
-	gcc $(CFLAGS) -o fsmrom tokenizer.o flat_tokens.o  
+fsmrom: tokenizer.o flat_tokens.o flat_gen.o 
+	gcc $(CFLAGS) -o fsmrom tokenizer.o flat_tokens.o flat_gen.o
 	
 tokenizer.o: tokenizer.c tokenizer.h 
 	gcc $(CFLAGS) -c tokenizer.c

@@ -9,3 +9,16 @@ FETCH1:
 FETCH2: 
 	DrALU LdPC ALUHi ALULo
 	dispatch
+
+ADD0:
+	DrReg RegSelLo LdA
+	goto ADD1
+
+ADD1:
+	DrReg RegSelHi LdB
+	goto ADD2
+
+ADD2:
+	DrALU WrREG
+	goto FETCH0
+

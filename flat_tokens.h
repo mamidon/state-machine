@@ -12,19 +12,20 @@
 
 //The total number of opcodes (IN USE)
 #define OPCODE_COUNT 16
+#define FETCH_OPCODE 15
 
 //The total number of transition token types
 #define TRANS_COUNT 5
 
 /* Opcodes by instruction [opcode is the index into array] */
-const char* opcodes[OPCODE_COUNT+1];
+const char* opcodes[OPCODE_COUNT];
 
 /* Signals (start at NEXT_BITS bits from 0, 1 bit per signal) */
 /* The actual signal value is (1<<i), where (i) is the index into signals */
-const char* signals[SIGNAL_COUNT+1];
+const char* signals[SIGNAL_COUNT];
 
 /* The various types of transitions */
-const char* transitions[TRANS_COUNT+1];
+const char* transitions[TRANS_COUNT];
 
 //Each signal has a specific bit in value
 typedef uint32_t signal_token;

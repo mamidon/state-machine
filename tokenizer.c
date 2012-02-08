@@ -53,10 +53,11 @@ uint8_t parse_file (const char* file_name, size_t* token_count) {
 			
 			if((*parse_funcs[i]) (buf, &count) == 0)
 				//If the token didn't take the entire string.. keep searching.
-				if(count < strlen(buf)) {
+				if(count <= strlen(buf)) {
 					memmove(buf, buf+count, MAX_TOKEN_LENGTH-count);
-					i = 0;			
-				}
+					i = 0;	
+					if(count > 0) i = 0;		
+				} 
 		}
 
 	if(fclose(f) != 0) {

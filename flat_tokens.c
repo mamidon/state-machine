@@ -3,7 +3,7 @@
 #include "flat_tokens.h"
 #include "tokenizer.h"
 #include "arraylist.h"
-//#include "flat_gen.h"
+#include "flat_gen.h"
 
 int main(int argc, char** argv) {
 	if(argc != 2) {
@@ -17,7 +17,19 @@ int main(int argc, char** argv) {
 	memset(head, 0, sizeof(macro_state));
 
 	register_token_parsers(parsers, 3);
-	parse_file(argv[1], &count);	
+	parse_file(argv[1], &count);
+
+	if(head == NULL) {
+		printf("Nothing parsed!\n");
+		exit(0);
+	}
+
+	//Drop the last (invalid) state
+	macro_state* h = head->next;
+	free(head);
+	head = h;
+	
+	generate_binary(head);
 }
 
 /*	Function which will parse out a token, returning 0 on success or non-zero on failure.
@@ -47,11 +59,15 @@ uint8_t parse_state (char* buffer, size_t* count) {
 	} else if(head->parse == TRANSITION_FILLING) {
 		transition_type t = head->transition.type;
 		if(head->transition.first_step == EMPTY) {
-			head->transition.step_a = stp;
+
+			head->transition.step_a = stp + 
+				(index == FETCH_OPCODE ? 0 : FETCH_STEP_COUNT);
+
 			if(t == GOTO) {head->parse = TRANSITION_FILLED;} 
 			else {head->transition.first_step = TRANSITION_FILLING;}
 		} else {
-			head->transition.step_b = stp;
+			head->transition.step_b = stp + 
+				(index == FETCH_OPCODE ? 0 : FETCH_STEP_COUNT);
 			head->parse = TRANSITION_FILLED;
 		}
 
@@ -111,7 +127,8 @@ uint8_t parse_transition (char* buffer, size_t* count) {
 	head->transition.type = index;
 	if(index == DISPATCH) {
 		head->parse = TRANSITION_FILLED;
-		head->transition.step_a = head->transition.step_b = 0;
+		head->transition.step_a = 
+			head->transition.step_b = FETCH_STEP_COUNT;
 		push_macro_state();
 	} else //GOTO, ONZ, ONINT, ELSE
 		head->parse = TRANSITION_FILLING;
@@ -128,14 +145,11 @@ void push_macro_state() {
 
 	n->next = head;
 
-
-	printf("%s%i: %i \n", opcodes[head->opcode], head->step, head->signal);
-
 	head = n;
 }
 
 
-const char* opcodes[OPCODE_COUNT+1] = {
+const char* opcodes[OPCODE_COUNT] = {
   /* opcode     */
   /*  0000 ADD  */ "ADD",
   /*  0001 NAND */ "NAND",
@@ -152,12 +166,11 @@ const char* opcodes[OPCODE_COUNT+1] = {
   /*  1100 RETI */ "RETI",
   /*  1101 BONI */ "BONI",
   /*  1110 BONJ */ "BONJ",
-  /*  1111 NA */ "FETCH", // Does not have an actual opcode, is special
-  ""
+  /*  1111 NA */ "FETCH" // Does not have an actual opcode, is special
 };
 
 /* Signals (start at NEXT_BITS bits from 0, 1 bit per signal) */
-const char *signals[SIGNAL_COUNT+1] = {
+const char *signals[SIGNAL_COUNT] = {
   "DrREG",
   "DrMEM",
   "DrALU",
@@ -177,18 +190,16 @@ const char *signals[SIGNAL_COUNT+1] = {
   "ALULo",
   "ALUHi",
   "LdIE",
-  "IntAck",
-  ""
+  "IntAck"
 };
 
 /* The various types of transitions */
-const char* transitions[TRANS_COUNT+1] = {
+const char* transitions[TRANS_COUNT] = {
   "dispatch",
   "goto",
   "onZ",
   "onInt",
-  "else",
-  ""
+  "else"
 };
 
 
