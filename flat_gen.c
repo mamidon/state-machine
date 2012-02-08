@@ -4,40 +4,91 @@
 /* Generates a flat rom binary image*/
 void emit_binary() {}
 
+void print_stream(token* tokens, size_t begin, size_t end);
+
+void print_stream(token* tokens, size_t begin, size_t end) {
+	for(size_t i = begin; i < end; i++)
+		if(tokens[i].type == STATE)
+			printf("STAGE ");
+		else if(tokens[i].type == SIGNAL)
+			printf("SIGNAL ");
+		else if(tokens[i].type == TRANSITION)
+			printf("TRANS ");
+
+	printf("\n\n\n");
+}
+
 /* Generates an address into the rom for the given parameters */
-uint32_t emit_addr(size_t opcode, char zero, char interrupt, token transition) {
+uint32_t emit_addr(size_t opcode, char zero, char interrupt, char next) {
 	return zero<<CHKZ_OFFSET | interrupt<<INT_OFFSET | opcode<<OP_OFFSET | next<<NEXT_OFFSET;
 }
 
 /* Generates the binary image */
 void generate_binary(token* tokens, size_t count) {
 	for(size_t i = 0; i < count; ) {
-		size_t stage = get_stage(tokens, i, count-i);
-		size_t trans = get_transition(tokens, stage, count-stage);
-		signal_token signal = get_signal(tokens, stage, trans);
-		
-		generate_micro_state(tokens[stage], tokens[trans], signal);
-		i += trans;
+		size_t stage = get_stage(tokens, i, count);
+		size_t trans = get_transition(tokens, stage, count);
+		signal_token signal = get_signals(tokens, stage, trans);
+
+		i = generate_micro_state(stage, trans, signal, tokens);
+		i++;
+		printf("%i %i\n", i, count);
+		print_stream(tokens, i, count);
 	}
 }
 
 /* Burns the appropriate signals at the appropriate indices in the ROM */
-void generate_micro_state(token stage, token transition, signal_token signal) {
+size_t generate_micro_state(size_t stage, size_t trans, signal_token signal, token* tokens) {
 	uint32_t addr;
+  size_t lookahead = trans;
+
+	//Look ahead into the stream and parse out transition targets
+	switch(tokens[trans].transition.type) {
+		case DISPATCH: //No look ahead
+		break;
+		
+		case GOTO: //goto STATE
+		tokens[trans].transition.target_a = tokens[trans+1].state;
+		lookahead = trans + 1;
+		break;
+
+		case ONZ: //onz STATE else STATE
+		case ONINT:
+		tokens[trans].transition.target_a = tokens[trans+1].state;
+		tokens[trans].transition.target_b = tokens[trans+3].state;
+		lookahead = trans + 3;
+		break;
+
+		case ELSE: //Shouldn't actually parse this, error out.
+		printf("Unexpected 'else' statement.\n");
+		exit(0);
+		break;
+	}
+
 	//Each micro state will be repeated four times between chkZ and onInt
 	//Changes in the microstate will vary based on the transition token
 	
 	// chkZ && onInt
-	for(size_t i = 0; i < 4; i++) {
-		addr = emit_addr(stage.state.state, i&2, i&1, transition);
-		binary[addr] = signal;
-	}
+	token state = tokens[stage];
+
+	if(state.state.opcode != OPCODE_COUNT-1) //If not IFETCH
+		printf("");//generate_micro_inst(state, signal, transition);
+	else
+		generate_fetch_step(tokens[stage], signal, tokens[trans]);
+
+
+	return lookahead;
+}
+
+
+void generate_fetch_step(token stage, signal_token signal, token trans) {
+	printf("FETCH%i:\n", stage.state.step);
 }
 
 /* Gets the index for the next STAGE token, with count tokens left in the stream */
-size_t get_stage(token* tokens, size_t begin, size_t count) {
-	for(size_t i = begin; i < count; i++)
-		if(tokens[i].type == STAGE)
+size_t get_stage(token* tokens, size_t begin, size_t end) {
+	for(size_t i = begin; i < end; i++)
+		if(tokens[i].type == STATE)
 			return i;
 			
 	printf("ERROR: Expected STAGE token\n");
@@ -58,8 +109,8 @@ signal_token get_signals(token* tokens, size_t stage, size_t transition) {
 }
 
 /* Finds the next transition token, with count tokens left in the stream */
-size_t get_transition(token* tokens, size_t begin, size_t count) {
-	for(size_t i = begin; i < count; i++)
+size_t get_transition(token* tokens, size_t begin, size_t end) {
+	for(size_t i = begin; i < end; i++)
 		if(tokens[i].type == TRANSITION)
 			return i;
 	

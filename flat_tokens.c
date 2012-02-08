@@ -3,6 +3,7 @@
 #include "flat_tokens.h"
 #include "tokenizer.h"
 #include "arraylist.h"
+//#include "flat_gen.h"
 
 int main(int argc, char** argv) {
 	if(argc != 2) {
@@ -11,11 +12,12 @@ int main(int argc, char** argv) {
 	}
 	
 	size_t count;
-	arraylist alist;
 	
-	init_array(&alist, sizeof(token), 10);
+	head = malloc(sizeof(macro_state));
+	head->parse = EMPTY;
+
 	register_token_parsers(parsers, 3);
-	parse_file(argv[1], &alist, &count);	
+	parse_file(argv[1], &count);	
 }
 
 /*	Function which will parse out a token, returning 0 on success or non-zero on failure.
@@ -26,51 +28,59 @@ int main(int argc, char** argv) {
 //typedef uint8_t (*parse_token) (char* buffer, size_t* count, token* type);
 
 //Each state is '\w+\d+:' or '\w+\d+'
-uint8_t parse_state (char* buffer, size_t* count, arraylist* alist) {
-	token tok;
-	tok.type = STATE;
-	
-	size_t len = strlen(opcodes[0]);
-	for(size_t i = 0; i < OPCODE_COUNT; i++, len = strlen(opcodes[i]))
-		if(strncasecmp(buffer, opcodes[i], len) == 0) {
-			if(strncasecmp(buffer, opcodes[2], 4) == 0 && i == 0) { //Check for a substring issue
-				i = 2;
-				len = 4;
-			}
-			//Match found -- parse microstate
-			tok.state.state = i;
-			tok.state.step = atoi(&buffer[len]); 
-			tok.state.step > 9 ? len+=2 : len++;
-			
-			if(strstr(&buffer[len], ":") == &buffer[len])
-				len++; //If a ':' follows this token, lets drop it.
-			*count = len;
-			
-			append_back(alist, (char*) &tok); 
-			
-			return 0;
+uint8_t parse_state (char* buffer, size_t* count) {
+	//Make sure we only update what we're supposed to.
+	if(head->parse != EMPTY && head->parse != TRANSITION_FILLING)
+		return 1;
+
+	size_t index = best_match(buffer, opcodes, OPCODE_COUNT);
+	if(index == OPCODE_COUNT)	
+		return 1;
+
+	*count = strlen(opcodes[index]);
+	//Match found -- parse microstate
+	if(head->parse == EMPTY) {
+		head->opcode = index;
+		head->step = atoi(buffer);
+		head->step > 9 ? *count+=2 : *count++;
+	} else if(head->parse == TRANSITION_FILLING) {
+		if(head->transition.first_step == EMPTY) {
+			head->transition.step_a = index;
+			head->transition.first_step = TRANSITION_FILLING;
+		} else {
+			head->transition.step_b = index;
+			head->parse = TRANSITION_FILLED;
+			push_macro_state();
 		}
-		*count = 0;
-		return 1; //Failure
+		return 0;
+	}		
+			
+
+	head->parse = STATE_FILLED;
+			
+	return 0;
 }
 
 //Each signal is simply '\w+' 
-uint8_t parse_signal (char* buffer, size_t* count, arraylist* alist) {
-	token tok;
-	tok.type = SIGNAL;
-	
-	size_t len = strlen(signals[0]);
-	for(size_t i = 0; i < SIGNAL_COUNT; i++, len = strlen(signals[i])) 
-		if(strncasecmp(buffer, signals[i], len) == 0) {
-			tok.signal = 1<<i;
-			*count = len;
-			
-			append_back(alist, (char*) &tok);
-			return 0;
-		}
-		
-	*count = 0;
-	return 1; //Failure
+uint8_t parse_signal (char* buffer, size_t* count) {
+	size_t len = 0;
+
+	//Make sure we only update when we're supposed to
+	if(head->parse != STATE_FILLED && head->parse != SIGNALS_FILLED)	
+		return 1;
+
+	size_t index = best_match(buffer, signals, SIGNAL_COUNT);
+	if(index == SIGNAL_COUNT)
+		return 1;		
+
+	//Match found -- parse signal
+	len = strlen(signals[index]);
+	head->signal |= 1<<index;
+
+	head->parse = SIGNALS_FILLED;
+
+	*count = len;
+	return 0; //Success
 }
 
 
@@ -84,44 +94,90 @@ uint8_t parse_signal (char* buffer, size_t* count, arraylist* alist) {
 	state parsing will take care every STATE, we need to catch
 	GOTO, DISPATCH, ONZ, ONINT, and ELSE.  
 */
-uint8_t parse_transition (char* buffer, size_t* count, arraylist* alist) {
-	token tok;
-	tok.type = TRANSITION;
-	
-	size_t len = strlen(signals[0]);
-	for(size_t i = 0; i < TRANS_COUNT; i++, len = strlen(transitions[i])) {
-		if(strncasecmp(buffer, transitions[i], len) == 0) {
-			tok.transition = 1<<i; //Flip the appropriate bit
-			*count = len;
+uint8_t parse_transition (char* buffer, size_t* count) {
+	//Make sure we only update when were supposed to
+	if(head->parse != SIGNALS_FILLED && head->parse != TRANSITION_FILLING)
+		return 1;
 			
-			append_back(alist, (char*) &tok);
-			return 0;
-		}
-	}
+	size_t index = best_match(buffer, transitions, TRANS_COUNT);
+	if(index == TRANS_COUNT)
+		return 1;
+
+	head->type = index;
+	if(index == DISPATCH) {
+		head->parse = TRANSITION_FILLING;
+		head->transition.step_a = head->transition.step_b = 0;
+		push_macro_state();
+	} else //GOTO, ONZ, ONINT, ELSE
+		head->parse = TRANSITION_FILLING;
 	
-	*count = 0;
+		
+	*count = strlen(transitions[index]);
 	return 1; //Failure
 }
 
 
+/* Pushes a clean macro state onto th
+
+const char* opcodes[OPCODE_COUNT+1] = {
+  /* opcode     */
+  /*  0000 ADD  */ "ADD",
+  /*  0001 NAND */ "NAND",
+  /*  0010 ADDI */ "ADDI",
+  /*  0011 LW   */ "LW",
+  /*  0100 SW   */ "SW",
+  /*  0101 BEQ  */ "BEQ",
+  /*  0110 JALR */ "JALR",
+  /*  0111 HALT */ "HALT",
+  /*  1000 BONR */ "BONR",
+  /*  1001 BONO */ "BONO",
+  /*  1010 EI   */ "EI",
+  /*  1011 DI   */ "DI",
+  /*  1100 RETI */ "RETI",
+  /*  1101 BONI */ "BONI",
+  /*  1110 BONJ */ "BONJ",
+  /*  1111 NA */ "FETCH", // Does not have an actual opcode, is special
+  ""
+};
+
+/* Signals (start at NEXT_BITS bits from 0, 1 bit per signal) */
+const char *signals[SIGNAL_COUNT+1] = {
+  "DrREG",
+  "DrMEM",
+  "DrALU",
+  "DrPC",
+  "DrOFF",
+  "LdPC",
+  "LdIR",
+  "LdMAR",
+  "LdA",
+  "LdB",
+  "LdZ",
+  "WrREG",
+  "WrMEM",
+  "IntEn",
+  "RegSelLo",
+  "RegSelHi",
+  "ALULo",
+  "ALUHi",
+  "LdIE",
+  "IntAck",
+  ""
+};
+
+/* The various types of transitions */
+const char* transitions[TRANS_COUNT+1] = {
+  "dispatch",
+  "goto",
+  "onZ",
+  "onInt",
+  "else",
+  ""
+};
 
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+parse_token parsers[3] = { &parse_transition, &parse_signal, &parse_state };

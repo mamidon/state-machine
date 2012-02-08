@@ -17,75 +17,14 @@
 #define TRANS_COUNT 5
 
 /* Opcodes by instruction [opcode is the index into array] */
-const char* opcodes[OPCODE_COUNT+1] = {
-  /* opcode     */
-  /*  0000 ADD  */ "ADD",
-  /*  0001 NAND */ "NAND",
-  /*  0010 ADDI */ "ADDI",
-  /*  0011 LW   */ "LW",
-  /*  0100 SW   */ "SW",
-  /*  0101 BEQ  */ "BEQ",
-  /*  0110 JALR */ "JALR",
-  /*  0111 HALT */ "HALT",
-  /*  1000 BONR */ "BONR",
-  /*  1001 BONO */ "BONO",
-  /*  1010 EI   */ "EI",
-  /*  1011 DI   */ "DI",
-  /*  1100 RETI */ "RETI",
-  /*  1101 BONI */ "BONI",
-  /*  1110 BONJ */ "BONJ",
-  /*  1111 NA */ "FETCH", // Does not have an actual opcode, is special
-  ""
-};
+const char* opcodes[OPCODE_COUNT+1];
 
 /* Signals (start at NEXT_BITS bits from 0, 1 bit per signal) */
 /* The actual signal value is (1<<i), where (i) is the index into signals */
-const char *signals[SIGNAL_COUNT+1] = {
-  "DrREG",
-  "DrMEM",
-  "DrALU",
-  "DrPC",
-  "DrOFF",
-  "LdPC",
-  "LdIR",
-  "LdMAR",
-  "LdA",
-  "LdB",
-  "LdZ",
-  "WrREG",
-  "WrMEM",
-  "IntEn",
-  "RegSelLo",
-  "RegSelHi",
-  "ALULo",
-  "ALUHi",
-  "LdIE", 
-  "IntAck",
-  ""
-};
+const char* signals[SIGNAL_COUNT+1];
 
 /* The various types of transitions */
-const char* transitions[TRANS_COUNT+1] = {
-	"dispatch",
-	"goto",
-	"onZ",
-	"onInt",
-	"else",
-	""
-};
-
-//Valid types for our microcode
-typedef enum token_type_ {
-	STATE,
-	SIGNAL,
-	TRANSITION
-} token_type;
-
-//Each state has an opcode (state) and a microstep (step)
-typedef struct state_token_ {
-	size_t state;
-	size_t step;
-} state_token;
+const char* transitions[TRANS_COUNT+1];
 
 //Each signal has a specific bit in value
 typedef uint32_t signal_token;
@@ -97,22 +36,38 @@ typedef uint32_t signal_token;
 	fetch = set next field to point to the first microstate.
 */
 typedef enum transition_type_ {
-	fetch=1,
-	normal=2,
-	zero=4,
-	interrupt=8,
-	not_taken=16
+	DISPATCH,
+	GOTO,
+	ONZ,
+	ONINT,
+	ELSE
+} transition_type;
+
+typedef enum current_parse_ {
+	EMPTY,
+	STATE_FILLED,
+	SIGNALS_FILLED,
+	TRANSITION_FILLING,
+	TRANSITION_FILLED,
+} current_parse;
+
+/* Indicates the targets of any given transition */
+typedef struct transition_token_ {
+	transition_type type;
+	current_parse first_step;
+	size_t step_a;
+	size_t step_b; 
 } transition_token;
 
-//Pairs a given string with it's token type
-typedef struct token_ {
-	size_t type;
-	union {
-		transition_token transition;
-		signal_token signal;
-		state_token state;
-	};
-} token;
+/* Represents a full state */
+typedef struct macro_state_ {
+	size_t opcode;
+	size_t step;
+	signal_token signal;
+	transition_token transition;
+	struct macro_state_* next;
+	current_parse parse; //If incompletely parsed
+} macro_state;
 
 
 /*	Function which will parse out a token, returning 0 on success or non-zero on failure.
@@ -122,10 +77,12 @@ typedef struct token_ {
 */
 //typedef uint8_t (*parse_token) (char* buffer, size_t* count, token* type);
 
-uint8_t parse_state (char* buffer, size_t* count, arraylist* alist);
-uint8_t parse_signal (char* buffer, size_t* count, arraylist* alist);
-uint8_t parse_transition (char* buffer, size_t* count, arraylist* alist);
+uint8_t parse_state (char* buffer, size_t* count);
+uint8_t parse_signal (char* buffer, size_t* count);
+uint8_t parse_transition (char* buffer, size_t* count);
+void push_macro_state();
 
-parse_token parsers[3] = { &parse_state, &parse_signal, &parse_transition };
+parse_token parsers[3];
+macro_state* head;
 
 #endif

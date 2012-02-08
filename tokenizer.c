@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <ctype.h>
+#include <strings.h>
 
 #include "tokenizer.h"
 
@@ -32,7 +33,7 @@ size_t read_str(FILE* f, char* buf);
 	tokens = out parameter of tokens parsed.
 	token_count = the number of tokens parsed.
 */
-uint8_t parse_file (const char* file_name, arraylist* tokens, size_t* token_count) {
+uint8_t parse_file (const char* file_name, size_t* token_count) {
 	//Pointer to our file descriptor, and temporary buffer for reading.
 	FILE* f = NULL;
 	char buf[MAX_TOKEN_LENGTH];
@@ -50,7 +51,7 @@ uint8_t parse_file (const char* file_name, arraylist* tokens, size_t* token_coun
 		for(size_t i = 0; i < func_count; i++) {
 			size_t count = 0; 
 			
-			if((*parse_funcs[i]) (buf, &count, tokens) == 0)
+			if((*parse_funcs[i]) (buf, &count) == 0)
 				//If the token didn't take the entire string.. keep searching.
 				if(count < strlen(buf)) {
 					memmove(buf, buf+count, MAX_TOKEN_LENGTH-count);
@@ -74,7 +75,7 @@ uint8_t parse_file (const char* file_name, arraylist* tokens, size_t* token_coun
 size_t read_str(FILE* f, char* buf) {
 	char c;
 	//Skip preceeding whitespace
-	while(isspace(c = fgetc(f)) && c != EOF);
+	while(!isalpha(c = fgetc(f)) && c != EOF);
 	ungetc(c, f);
 
 	//clear buffer
@@ -83,7 +84,7 @@ size_t read_str(FILE* f, char* buf) {
 	//Grab the string
 	for(size_t index = 0; index < MAX_TOKEN_LENGTH; index++) {
 		buf[index] = fgetc(f);
-		if(buf[index] == EOF || isspace(buf[index])) {
+		if(buf[index] == EOF || !isalpha(buf[index])) {
 			buf[index] = '\0';
 			return index;
 		}
@@ -101,3 +102,25 @@ void register_token_parsers (parse_token* functions, size_t count) {
 	parse_funcs = functions;
 	func_count = count;
 }
+
+/*
+	Finds the longest matching string from strs. 
+*/
+size_t best_match(char* buffer, const char** strs, size_t count) {
+	size_t len = 0, max = 0, ret = count;
+
+	for(size_t i = 0; i < count; len = strlen(&strs[i])) 
+		if(strncasecmp(buffer, strs[i], len) == 0 && len > max) {
+			ret = i;
+			max = len;
+		}
+
+	return ret;
+}
+
+
+
+
+
+
+
