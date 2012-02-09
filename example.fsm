@@ -1,6 +1,6 @@
 FETCH0:
 	DrPC LdA LdMAR
-	goto FETCH1
+	onz FETCH1 else FETCH0
 
 FETCH1:
 	DrMEM LdIR
@@ -12,13 +12,36 @@ FETCH2:
 
 ADD0:
 	DrReg RegSelLo LdA
-	goto ADD1
+	onz ADD1 else ADD2
 
 ADD1:
 	DrReg RegSelHi LdB
 	goto ADD2
 
 ADD2:
+	DrALU WrREG
+	goto FETCH0
+
+NAND0:
+	DrReg RegSelLo LdA
+	goto NAND1
+
+NAND1:
+	DrReg RegSelHi LdB
+	goto NAND2
+
+NAND2:
+	DrALU ALULo WrREG
+	goto FETCH0
+ADDI0:
+	DrReg RegSelLo LdA
+	goto ADDI1
+
+ADDI1:
+	DrOff LdB
+	onz ADDI2 else ADDI1
+
+ADDI2:
 	DrALU WrREG
 	goto FETCH0
 

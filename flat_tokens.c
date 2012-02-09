@@ -2,7 +2,6 @@
 
 #include "flat_tokens.h"
 #include "tokenizer.h"
-#include "arraylist.h"
 #include "flat_gen.h"
 
 int main(int argc, char** argv) {
@@ -124,7 +123,8 @@ uint8_t parse_transition (char* buffer, size_t* count) {
 	if(index == TRANS_COUNT)
 		return 1;
 
-	head->transition.type = index;
+	if(head->transition.type == 0)
+		head->transition.type = index;
 	if(index == DISPATCH) {
 		head->parse = TRANSITION_FILLED;
 		head->transition.step_a = 

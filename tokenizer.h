@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 	
-#include "arraylist.h"
 
 /* 	Parses the given file for tokens, returning 0 on success or non-zero on failure.  
 	file_name = file to be parsed.
