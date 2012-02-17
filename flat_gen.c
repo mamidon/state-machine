@@ -10,8 +10,10 @@ void emit_binary() {}
 
 /* Generates an address into the rom for the given parameters */
 uint32_t emit_addr(size_t opcode, char zero, char interrupt, char step) {
-	return zero<<CHKZ_OFFSET | interrupt<<INT_OFFSET | opcode<<OP_OFFSET 
+	uint32_t tmp = zero<<CHKZ_OFFSET | interrupt<<INT_OFFSET | opcode<<OP_OFFSET 
 					| step<<NEXT_OFFSET;
+
+	return tmp;
 }
 
 /* Generates the binary image */
@@ -56,18 +58,19 @@ void generate_micro_fetch(macro_state* fetch_step) {
 	size_t a = st.transition.step_b; //Regular, dispatch, else
 	size_t b = st.transition.step_a; //onint, onz
 
+	for(size_t i = 0; i < FETCH_OPCODE; i++)
 	switch(st.transition.type) {
 		case(DISPATCH):
-			burn_signals(0, st.step, st.signal, a, 0, a);
+			burn_signals(i, st.step, st.signal, a, 0, a);
 			break;
 		case(GOTO):
-			burn_signals(0, st.step, st.signal, a, 0, a);
+			burn_signals(i, st.step, st.signal, a, 0, a);
 			break;
 		case(ONZ):
-			burn_signals(0, st.step, st.signal, a, 1, b);
+			burn_signals(i, st.step, st.signal, a, 1, b);
 			break;
 		case(ONINT):
-			burn_signals(0, st.step, st.signal, a, 0, b);
+			burn_signals(i, st.step, st.signal, a, 0, b);
 			break;
 	}
 

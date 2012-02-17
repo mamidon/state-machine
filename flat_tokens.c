@@ -59,7 +59,7 @@ uint8_t parse_state (char* buffer, size_t* count) {
 		transition_type t = head->transition.type;
 		if(head->transition.first_step == EMPTY) {
 
-			head->transition.step_a = stp + 
+			head->transition.step_a = head->transition.step_b = stp + 
 				(index == FETCH_OPCODE ? 0 : FETCH_STEP_COUNT);
 
 			if(t == GOTO) {head->parse = TRANSITION_FILLED;} 

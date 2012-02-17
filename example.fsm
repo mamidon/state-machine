@@ -1,7 +1,7 @@
 FETCH0:
 	DrPC LdA LdMAR
-	onz FETCH1 else FETCH0
-
+	goto FETCH1
+	
 FETCH1:
 	DrMEM LdIR
 	goto FETCH2
