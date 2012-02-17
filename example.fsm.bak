@@ -88,21 +88,17 @@ BEQ1:
 
 BEQ2:
 	DrALU LdZ
-	goto BEQ3
+	onz BEQ3 else FETCH0
 
 BEQ3:
-	DrALU
-	onz BEQ4 else FETCH0
+	DrPC LdA
+	goto BEQ4
 
 BEQ4:
-	DrPC LdA
+	DrOFF LdB
 	goto BEQ5
 
 BEQ5:
-	DrOFF LdB
-	goto BEQ6
-
-BEQ6:
 	DrALU LdPC
 	goto FETCH0
 

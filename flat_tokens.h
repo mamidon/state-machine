@@ -78,9 +78,9 @@ typedef struct macro_state_ {
 */
 //typedef uint8_t (*parse_token) (char* buffer, size_t* count, token* type);
 
-uint8_t parse_state (char* buffer, size_t* count);
-uint8_t parse_signal (char* buffer, size_t* count);
-uint8_t parse_transition (char* buffer, size_t* count);
+uint8_t parse_state (char* buffer);
+uint8_t parse_signal (char* buffer);
+uint8_t parse_transition (char* buffer);
 void push_macro_state();
 
 parse_token parsers[3];

@@ -19,7 +19,7 @@ uint8_t parse_file (const char* file_name, size_t* token_count);
 	count = number of characters in token.
 	tokens = the list of tokens already parsed
 */
-typedef uint8_t (*parse_token) (char* buffer, size_t* count);
+typedef uint8_t (*parse_token) (char* buffer);
 
 /*	Registers a set of token parsing functions which fullfill the contract
 	specified by parse_token.

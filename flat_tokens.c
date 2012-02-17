@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
 //typedef uint8_t (*parse_token) (char* buffer, size_t* count, token* type);
 
 //Each state is '\w+\d+:' or '\w+\d+'
-uint8_t parse_state (char* buffer, size_t* count) {
+uint8_t parse_state (char* buffer) {
 	//Make sure we only update what we're supposed to.
 	if(head->parse != EMPTY && head->parse != TRANSITION_FILLING)
 		return 1;
@@ -48,10 +48,10 @@ uint8_t parse_state (char* buffer, size_t* count) {
 	if(index == OPCODE_COUNT)	
 		return 1;
 
-	*count = strlen(opcodes[index]);
+	size_t count = strlen(opcodes[index]);
 	//Match found -- parse microstate
-	size_t stp = atoi(buffer+*count); //Grab the micro number
-	stp > 9 ? (*count)+= 2 : (*count)++;
+	size_t stp = atoi(buffer+count); //Grab the micro number
+	stp > 9 ? (count)+= 2 : (count)++;
 	if(head->parse == EMPTY) {
 		head->opcode = index;
 		head->step = stp;
@@ -82,9 +82,9 @@ uint8_t parse_state (char* buffer, size_t* count) {
 }
 
 //Each signal is simply '\w+' 
-uint8_t parse_signal (char* buffer, size_t* count) {
+uint8_t parse_signal (char* buffer) {
 	size_t len = 0;
-
+	
 	//Make sure we only update when we're supposed to
 	if(head->parse != STATE_FILLED && head->parse != SIGNALS_FILLED)	
 		return 1;
@@ -99,7 +99,6 @@ uint8_t parse_signal (char* buffer, size_t* count) {
 
 	head->parse = SIGNALS_FILLED;
 
-	*count = len;
 	return 0; //Success
 }
 
@@ -114,7 +113,7 @@ uint8_t parse_signal (char* buffer, size_t* count) {
 	state parsing will take care every STATE, we need to catch
 	GOTO, DISPATCH, ONZ, ONINT, and ELSE.  
 */
-uint8_t parse_transition (char* buffer, size_t* count) {
+uint8_t parse_transition (char* buffer) {
 	//Make sure we only update when were supposed to
 	if(head->parse != SIGNALS_FILLED && head->parse != TRANSITION_FILLING)
 		return 1;
@@ -132,10 +131,7 @@ uint8_t parse_transition (char* buffer, size_t* count) {
 		push_macro_state();
 	} else //GOTO, ONZ, ONINT, ELSE
 		head->parse = TRANSITION_FILLING;
-	
 		
-	*count = strlen(transitions[index]);
-
 	return 0; //Success
 }
 

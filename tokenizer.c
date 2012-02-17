@@ -47,18 +47,18 @@ uint8_t parse_file (const char* file_name, size_t* token_count) {
 
 	//2.  Read each contiguous string, one at a time
 	
-	while(read_str(f, buf))
-		for(size_t i = 0; i < func_count; i++) {
-			size_t count = 0; 
-			
-			if((*parse_funcs[i]) (buf, &count) == 0)
-				//If the token didn't take the entire string.. keep searching.
-				if(count <= strlen(buf)) {
-					memmove(buf, buf+count, MAX_TOKEN_LENGTH-count);
-					i = 0;	
-					if(count > 0) i = 0;		
-				} 
+	while(read_str(f, buf)) {
+		size_t count = 0;
+		for(size_t i = 0; i < func_count; i++) 
+			if((*parse_funcs[i]) (buf) == 0) {
+				count++;
+				break; //Found a match
+			}
+		if(count == 0){ //No matching token!
+			printf("Error near %s!\n", buf);
+			exit(0);
 		}
+	}
 
 	if(fclose(f) != 0) {
 		printf("fclose failed! %i\n", errno);
