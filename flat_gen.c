@@ -80,8 +80,8 @@ void generate_micro_fetch(macro_state* fetch_step) {
 void generate_micro_inst(macro_state* inst_step) {
 	macro_state st = *inst_step;
 	st.step += FETCH_STEP_COUNT;
-	size_t a = st.transition.step_a; //Regular, dispatch, else
-	size_t b = st.transition.step_b; //onint, onz
+	size_t a = st.transition.step_b; //Regular, dispatch, else
+	size_t b = st.transition.step_a; //onint, onz
 
 	switch(st.transition.type) {
 		case(DISPATCH):
