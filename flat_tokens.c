@@ -1,8 +1,18 @@
-#include <strings.h>
-
 #include "flat_tokens.h"
 #include "tokenizer.h"
 #include "flat_gen.h"
+
+static void gen_outfile(char *outfile)
+{
+	int i;
+	for(i = strlen(outfile)-1; i > 0; i--) {
+		if(outfile[i] == '.')
+			break;
+	}
+	if(i != 0)
+		outfile[i] = '\0';
+	strncat(outfile, ".hex", 5);
+}
 
 int main(int argc, char** argv) {
 	if(argc != 2) {
@@ -17,6 +27,9 @@ int main(int argc, char** argv) {
 
 	register_token_parsers(parsers, 3);
 	parse_file(argv[1], &count);
+	char *outfile = malloc(strlen(argv[1])+5);
+	strncpy(outfile, argv[1],strlen(argv[1])+5);
+	gen_outfile(outfile);
 
 	if(head == NULL) {
 		printf("Nothing parsed!\n");
@@ -28,7 +41,8 @@ int main(int argc, char** argv) {
 	free(head);
 	head = h;
 	
-	generate_binary(head);
+	generate_binary(head,outfile);
+	free(outfile);
 }
 
 /*	Function which will parse out a token, returning 0 on success or non-zero on failure.
