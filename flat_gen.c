@@ -17,7 +17,7 @@ uint32_t emit_addr(size_t opcode, char zero, char interrupt, char step) {
 }
 
 /* Generates the binary image */
-void generate_binary(macro_state* head) {
+void generate_binary(macro_state* head, char *outfile) {
 	memset(binary, 0, (1<<ROM_ADDR_BITS)-1);
 	while(head != NULL) {
 		generate_micro_state(head);
@@ -25,11 +25,15 @@ void generate_binary(macro_state* head) {
 	}
 
 	//Now write the binary out to file
-	FILE* f = fopen("out.hex", "w");
+	FILE* f = fopen(outfile, "w");
 	if(f == NULL) {
 		printf("Error writing out binary! %i\n", errno);
 		exit(0);
 	}
+	
+#ifdef USE_LOGISIM
+	fprintf(f,"v%s %s\n", LOGISIM_VER, OUT_TYPE);
+#endif
 
 	for(size_t i = 0; i < (1<<ROM_ADDR_BITS)-1; i++)
 		fprintf(f, "%08X ", binary[i]);
