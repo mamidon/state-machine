@@ -1,4 +1,3 @@
-
 #ifndef FLAT_GEN_H
 #define FLAT_GEN_H
 
@@ -8,15 +7,19 @@
 #define FETCH_STEP_COUNT 10
 
 //Offsets for the parameters that go into addressing the ROM
-#define CHKZ_OFFSET 11
-#define INT_OFFSET 10
-#define OP_OFFSET 6
+#define CHKZ_OFFSET 12
+#define INT_OFFSET 11
+#define OP_OFFSET 7
 #define NEXT_OFFSET 0
 #define ROM_ADDR_BITS (CHKZ_OFFSET+1)
 
 //Offsets for values that go into the ROM
-#define SIG_OFFSET 6
+#define SIG_OFFSET 7
 
+//Constants for logisim
+#define USE_LOGISIM 1
+#define LOGISIM_VER "2.0"
+#define OUT_TYPE "raw"
 uint32_t binary[(1<<ROM_ADDR_BITS)-1]; //this represents the ROM
 
 
@@ -27,7 +30,7 @@ void emit_binary();
 uint32_t emit_addr(size_t opcode, char zero, char interrupt, char next);
 
 /* Generates the binary image */
-void generate_binary(macro_state* head);
+void generate_binary(macro_state* head, char *outfile);
 
 /* Burns the appropriate signals at the appropriate indices in the ROM */
 void generate_micro_state(macro_state* state);

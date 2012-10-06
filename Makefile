@@ -1,15 +1,20 @@
-CFILES = $(shell find . -type f -name "*.c")
-OBJFILES = $(shell find . -type f -name "*.o")
+CFILES=$(wildcard *.c)
+OBJFILES=$(CFILES:%.c=%.o)
+DEPFILES=$(OBJFILES:%.o=%.d)
 
-CFLAGS = -g -std=c99 -O0
+CFLAGS = -g -std=c99 -O0 -MMD
+
+%.o: %.c 
+	gcc -c -o $@ $< $(CFLAGS)
+
+fsmrom: $(OBJFILES)
+	gcc -o $@ $^ $(CFLAGS)
 
 
-all: fsmrom
+-include $(DEPFILES)
 
-fsmrom: $(CFILES) 
-	gcc $(CFLAGS) -o fsmrom $(CFILES)
 
 .PHONY: clean
 clean:
-	rm -rf fsmrom $(OBJFILES)
+	rm -rf fsmrom $(OBJFILES) *.d
 
